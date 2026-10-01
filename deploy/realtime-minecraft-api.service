@@ -1,0 +1,39 @@
+[Unit]
+Description=Realtime Minecraft internal management API
+Requires=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=realtime-mc-api
+Group=realtime-mc-api
+WorkingDirectory=/opt/realtime-minecraft-api
+EnvironmentFile=/etc/realtime-minecraft-api.env
+ExecStart=/opt/realtime-minecraft-api/.venv/bin/python /opt/realtime-minecraft-api/app.py
+Restart=on-failure
+RestartSec=5s
+
+# Must remain false because the unprivileged process invokes the tightly scoped
+# sudo helper. The helper and sudoers rule are the privilege boundary.
+NoNewPrivileges=no
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

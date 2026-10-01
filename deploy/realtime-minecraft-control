@@ -1,0 +1,101 @@
+#!/usr/bin/python3 -I
+"""Root-owned, tightly allowlisted Docker Compose helper for the API."""
+
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+
+
+DOCKER = "/usr/bin/docker"
+PROJECT = "/opt/realtime-minecraft"
+SERVICE = "minecraft"
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,16}$")
+SAFE_ENV = {
+    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+    "HOME": "/root",
+    "DOCKER_CONFIG": "/root/.docker",
+}
+
+
+def run(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        args,
+        cwd=PROJECT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout,
+        check=False,
+        shell=False,
+        env=SAFE_ENV,
+    )
+
+
+def compose(*args: str, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    return run([DOCKER, "compose", "--project-directory", PROJECT, *args], timeout)
+
+
+def fail(message: str, code: int = 1) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
+
+
+def status() -> None:
+    result = compose("ps", "--format", "json", SERVICE)
+    if result.returncode != 0:
+        fail("unable to query Minecraft service")
+    raw = result.stdout.strip()
+    if not raw:
+        print(json.dumps({"running": False, "healthy": False, "state": "absent", "health": None}))
+        return
+    try:
+        parsed = json.loads(raw)
+        rows = parsed if isinstance(parsed, list) else [parsed]
+    except json.JSONDecodeError:
+        try:
+            rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+        except json.JSONDecodeError:
+            fail("unexpected Docker status response")
+    row = rows[0] if rows else {}
+    state = str(row.get("State", "unknown")).lower()
+    health_value = row.get("Health")
+    health = str(health_value).lower() if health_value else None
+    running = state == "running"
+    print(json.dumps({"running": running, "healthy": running and health in (None, "healthy"), "state": state, "health": health}))
+
+
+def rcon(*command: str) -> None:
+    result = compose("exec", "-T", SERVICE, "rcon-cli", *command, timeout=20)
+    if result.returncode != 0:
+        fail("Minecraft RCON command failed")
+    print(result.stdout.strip())
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if args == ["status"]:
+        status()
+    elif args == ["players"]:
+        rcon("list")
+    elif len(args) == 2 and args[0] in {"whitelist-add", "whitelist-remove"}:
+        if USERNAME_RE.fullmatch(args[1]) is None:
+            fail("invalid Minecraft username", 2)
+        verb = "add" if args[0] == "whitelist-add" else "remove"
+        rcon("whitelist", verb, args[1])
+    elif args in (["start"], ["stop"], ["restart"]):
+        action = args[0]
+        command = ("up", "-d", SERVICE) if action == "start" else (action, SERVICE)
+        result = compose(*command, timeout=120)
+        if result.returncode != 0:
+            fail(f"Minecraft {action} failed")
+        print(f"Minecraft {action} completed")
+    else:
+        fail("unsupported operation", 2)
+
+
+if __name__ == "__main__":
+    main()

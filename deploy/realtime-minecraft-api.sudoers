@@ -1,0 +1,3 @@
+# Install with visudo -cf, owned by root:root, mode 0440.
+# The helper must be root-owned and not writable by realtime-mc-api.
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control *
