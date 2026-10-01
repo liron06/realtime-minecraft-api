@@ -55,11 +55,13 @@ It hard-codes project directory `/opt/realtime-minecraft`, Compose service
 `rcon-cli`, subprocess timeouts, and argument-array execution with no shell.
 The API also uses an argument array and a fixed absolute helper path.
 
-The sudoers rule necessarily authorizes invocation of the helper with arguments;
-the root-owned helper is the allowlist enforcement boundary. Never make the
-helper or its parent directory writable by `realtime-mc-api`. Because `sudo`
-must perform this one controlled privilege transition, the systemd service
-cannot use `NoNewPrivileges=yes`. Other hardening remains enabled.
+The sudoers file lists each allowed fixed invocation separately. Only the two
+whitelist operations accept a wildcard username argument; the root-owned helper
+is the validation boundary and rejects missing, extra, or invalid arguments.
+Never make the helper or its parent directory writable by `realtime-mc-api`.
+Because `sudo` must perform this one controlled privilege transition, the
+systemd service cannot use `NoNewPrivileges=yes`. Other hardening remains
+enabled.
 
 The Compose YAML, Compose `.env`, and `/opt/realtime-minecraft` directory must
 also not be writable by `realtime-mc-api`: Docker Compose evaluates those files
@@ -180,9 +182,10 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 ```
 
-The tests cover username validation, authentication failures, fixed whitelist
-and lifecycle actions, shell-free subprocess invocation, the unauthenticated
-health route, and sanitized errors.
+The tests cover username validation at both boundaries, authentication and
+token-length failures, fixed whitelist and lifecycle actions, unsupported
+helper actions, host-binding enforcement, shell-free subprocess invocation,
+the unauthenticated health route, and sanitized errors.
 
 ## Operational limitations
 

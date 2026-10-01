@@ -1,3 +1,9 @@
 # Install with visudo -cf, owned by root:root, mode 0440.
 # The helper must be root-owned and not writable by realtime-mc-api.
-realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control *
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control status
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control players
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control start
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control stop
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control restart
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control whitelist-add *
+realtime-mc-api ALL=(root) NOPASSWD: /usr/local/sbin/realtime-minecraft-control whitelist-remove *

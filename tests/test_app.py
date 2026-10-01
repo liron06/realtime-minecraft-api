@@ -1,6 +1,8 @@
 import asyncio
 import inspect
+import os
 import unittest
+from unittest.mock import patch
 
 from aiohttp.test_utils import TestClient, TestServer
 
@@ -119,6 +121,26 @@ class SubprocessTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertNotIn("shell", captured["kwargs"])
         self.assertNotIn("create_subprocess_shell", inspect.getsource(api.CommandRunner))
+
+
+class ConfigurationTests(unittest.TestCase):
+    def test_token_minimum_length(self):
+        with self.assertRaisesRegex(RuntimeError, "at least 32 bytes"):
+            api.create_app(token="x" * 31)
+
+        application = api.create_app(token="x" * 32, runner=FakeRunner())
+        self.assertEqual(application[api.TOKEN_KEY], "x" * 32)
+
+    def test_main_rejects_non_wireguard_hosts(self):
+        for host in ("0.0.0.0", "127.0.0.1", "", "10.77.0.1"):
+            with self.subTest(host=host), patch.dict(
+                os.environ,
+                {"API_HOST": host, "API_TOKEN": TOKEN},
+                clear=False,
+            ), patch.object(api.web, "run_app") as run_app:
+                with self.assertRaisesRegex(RuntimeError, "refusing to bind elsewhere"):
+                    api.main()
+                run_app.assert_not_called()
 
 
 if __name__ == "__main__":

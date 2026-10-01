@@ -30,11 +30,25 @@ class HelperTests(unittest.TestCase):
         compose.assert_called_once_with("restart", "minecraft", timeout=120)
 
     def test_unknown_or_extra_operations_are_rejected(self):
-        for args in (["exec", "anything"], ["start", "other"], ["restart", "other"]):
+        for args in ([], ["exec", "anything"], ["status", "extra"], ["start", "other"], ["restart", "other"]):
             with self.subTest(args=args), patch.object(helper.sys, "argv", ["helper", *args]):
                 with self.assertRaises(SystemExit) as raised:
                     helper.main()
                 self.assertEqual(raised.exception.code, 2)
+
+    @patch.object(helper, "compose")
+    def test_invalid_whitelist_usernames_are_rejected_by_helper(self, compose):
+        invalid = ["ab", "a" * 17, "bad-name", "bad name", "Steve;stop", "Steve\nstop"]
+        for username in invalid:
+            with self.subTest(username=username), patch.object(
+                helper.sys,
+                "argv",
+                ["helper", "whitelist-add", username],
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    helper.main()
+                self.assertEqual(raised.exception.code, 2)
+        compose.assert_not_called()
 
 
 if __name__ == "__main__":
